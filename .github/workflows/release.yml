@@ -1,0 +1,36 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-upload:
+    name: Build and upload macOS binary
+    runs-on: macos-26
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Build release binary
+        run: swift build --configuration release
+
+      - name: Prepare release asset
+        run: |
+          mkdir -p dist
+          cp .build/release/speech-analyzer dist/speech-analyzer-macos-arm64
+          codesign --force --sign - dist/speech-analyzer-macos-arm64
+
+      - name: Upload binary to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" dist/speech-analyzer-macos-arm64 --clobber

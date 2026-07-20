@@ -2,7 +2,7 @@
 
 [![Changelog](https://img.shields.io/github/v/release/simonw/speech-analyzer-cli?include_prereleases&label=changelog)](https://github.com/simonw/speech-analyzer-cli/releases)
 
-A small macOS command-line interface for Apple's on-device `SpeechAnalyzer` and `SpeechTranscriber` APIs. It transcribes prerecorded audio and can emit plain text, word-level JSON, JSONL, SubRip, or WebVTT.
+A small macOS command-line interface for Apple's on-device `SpeechAnalyzer` and `SpeechTranscriber` APIs. It transcribes prerecorded audio and can emit plain text, word-level JSON, JSONL, SubRip, or WebVTT. Optional on-device speaker diarization (`--diarize`) labels who spoke when, using [SpeakerKit](https://github.com/argmaxinc/argmax-oss-swift) (pyannote).
 
 Built using [GPT-5.6 Sol high in ChatGPT](https://chatgpt.com/share/6a55d11e-f0b8-83e8-8e50-2c690d6bfb0a) followed by [GPT-5.6 Sol xhigh in Codex CLI](https://gisthost.github.io/?48edfae0b16a1e58351ab2317894ddc1) to fix some bugs.
 
@@ -38,8 +38,24 @@ speech-analyzer --locale en-GB --format json interview.m4a
 speech-analyzer --format jsonl interview.wav > words.jsonl
 speech-analyzer --format srt --output interview.srt interview.m4a
 speech-analyzer --format vtt --output interview.vtt interview.m4a
+speech-analyzer --diarize --format vtt --output interview.vtt interview.m4a
+speech-analyzer --diarize --speaker-blocks --format vtt --output interview.vtt interview.m4a
 speech-analyzer --list-locales
 ```
+
+## Speaker diarization
+
+`--diarize` runs on-device speaker diarization (SpeakerKit / pyannote) after transcription and assigns each word the speaker whose turn overlaps it most. The pyannote models (~10 MB) download from Hugging Face on first use, then cache; diarization itself never leaves the device.
+
+Diarization changes how every format renders:
+
+- **vtt** / **srt** — each cue's text is prefixed with `"SPEAKER 1: "`, and cues always break on a speaker change: `SPEAKER 1: Hello, thanks for joining.`
+- **text** — output groups into speaker-labelled lines instead of one flat transcript: `SPEAKER 1: ...` / `SPEAKER 2: ...`.
+- **json** / **jsonl** — each word object gains a `"speaker"` field (0-based index; omitted for words no speaker turn overlapped).
+
+Words with no overlapping speaker turn are labelled `UNKNOWN`. Without `--diarize`, output is unchanged from before.
+
+By default, vtt/srt cues still split on the usual punctuation/size/duration limits within a speaker's turn. `--speaker-blocks` (requires `--diarize`) instead merges each speaker's entire contiguous turn into a single cue, spanning that turn's first word's start to its last word's end — useful when you want one continuous block per quote rather than several short cues.
 
 JSON contains the input path, selected locale, complete text, and an array of word objects:
 

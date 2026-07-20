@@ -7,6 +7,8 @@ struct Arguments {
     let format: OutputFormat
     let outputPath: String?
     let listLocales: Bool
+    let diarize: Bool
+    let speakerBlocks: Bool
 
     static let usage = """
     Usage: speech-analyzer [options] AUDIO_FILE
@@ -17,6 +19,13 @@ struct Arguments {
       -l, --locale LOCALE      BCP-47 locale, such as en-US (default: en-US)
       -f, --format FORMAT      text, json, jsonl, srt, or vtt (default: text)
       -o, --output PATH        Write to PATH instead of standard output
+          --diarize            Label speakers using on-device diarization
+                                (adds "SPEAKER N: " prefixes to vtt/srt/text,
+                                and a "speaker" field to json/jsonl)
+          --speaker-blocks      With --diarize and srt/vtt, merge each
+                                speaker's contiguous turn into one cue instead
+                                of splitting on sentence/size limits. Requires
+                                --diarize.
           --list-locales       List SpeechTranscriber locales available to download
       -h, --help               Show this help
           --version            Show the version
@@ -28,6 +37,8 @@ struct Arguments {
         var format: OutputFormat = .text
         var outputPath: String?
         var listLocales = false
+        var diarize = false
+        var speakerBlocks = false
         var index = 0
 
         func value(after option: String) throws -> String {
@@ -48,6 +59,10 @@ struct Arguments {
                 throw CLIError.version
             case "--list-locales":
                 listLocales = true
+            case "--diarize":
+                diarize = true
+            case "--speaker-blocks":
+                speakerBlocks = true
             case "-l", "--locale":
                 locale = try value(after: argument)
             case "-f", "--format":
@@ -73,13 +88,18 @@ struct Arguments {
         if !listLocales && inputPath == nil {
             throw CLIError.usage("Missing AUDIO_FILE")
         }
+        if speakerBlocks && !diarize {
+            throw CLIError.usage("--speaker-blocks requires --diarize")
+        }
 
         return Arguments(
             inputPath: inputPath,
             locale: locale,
             format: format,
             outputPath: outputPath,
-            listLocales: listLocales
+            listLocales: listLocales,
+            diarize: diarize,
+            speakerBlocks: speakerBlocks
         )
     }
 }

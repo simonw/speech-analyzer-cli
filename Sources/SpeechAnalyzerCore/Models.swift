@@ -6,11 +6,16 @@ public struct TimedWord: Codable, Equatable, Sendable {
     public let text: String
     public let confidence: Double?
 
-    public init(start: Double, end: Double, text: String, confidence: Double? = nil) {
+    /// The 0-based speaker index assigned by diarization (`--diarize`).
+    /// `nil` when diarization was not requested or no speaker overlapped this word.
+    public let speaker: Int?
+
+    public init(start: Double, end: Double, text: String, confidence: Double? = nil, speaker: Int? = nil) {
         self.start = start
         self.end = end
         self.text = text
         self.confidence = confidence
+        self.speaker = speaker
     }
 }
 
@@ -61,4 +66,12 @@ public enum OutputFormat: String, CaseIterable, Sendable {
     case jsonl
     case srt
     case vtt
+}
+
+public enum SpeakerLabel {
+    /// A display label such as `"SPEAKER 1"`, or `"UNKNOWN"` for an unassigned speaker.
+    public static func format(_ speaker: Int?) -> String {
+        guard let speaker else { return "UNKNOWN" }
+        return "SPEAKER \(speaker + 1)"
+    }
 }

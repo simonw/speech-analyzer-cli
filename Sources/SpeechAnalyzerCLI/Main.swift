@@ -13,11 +13,27 @@ struct SpeechAnalyzerCommand {
                 return
             }
 
-            let transcript = try await AppleTranscriber.transcribe(
+            var transcript = try await AppleTranscriber.transcribe(
                 path: arguments.inputPath!,
                 requestedLocale: arguments.locale
             )
-            let rendered = try TranscriptFormatter.render(transcript, as: arguments.format)
+
+            if arguments.diarize {
+                let turns = try await Diarizer.diarize(
+                    audioURL: URL(fileURLWithPath: transcript.file)
+                )
+                transcript = Transcript(
+                    file: transcript.file,
+                    locale: transcript.locale,
+                    words: Diarizer.label(transcript.words, with: turns)
+                )
+            }
+
+            let rendered = try TranscriptFormatter.render(
+                transcript,
+                as: arguments.format,
+                mergeSpeakerBlocks: arguments.speakerBlocks
+            )
 
             if let outputPath = arguments.outputPath {
                 try rendered.write(
